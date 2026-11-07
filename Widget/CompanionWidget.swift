@@ -43,6 +43,8 @@ struct CompanionWidgetView: View {
                     }
                     Spacer(minLength: 0)
                 }
+            } else if family == .accessoryCircular {
+                CharlieAvatar(mood: .idle, size: 46, bust: true)
             } else {
                 VStack(spacing: 8) {
                     CharlieAvatar(mood: .idle, size: 120)

@@ -22,6 +22,8 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
         synth.speak(u)
     }
 
+    var isSpeaking: Bool { synth.isSpeaking }
+
     func stop() {
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
     }

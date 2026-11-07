@@ -58,6 +58,9 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Настройки")
+            .onDisappear {
+                Keychain.set(apiKey.trimmingCharacters(in: .whitespacesAndNewlines), for: "apiKey")
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Готово") {

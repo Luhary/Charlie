@@ -15,6 +15,7 @@ final class LocationOnce: NSObject, CLLocationManagerDelegate {
     @MainActor
     func request() async -> CLLocation? {
         await withCheckedContinuation { (c: CheckedContinuation<CLLocation?, Never>) in
+            finish(nil)
             continuation = c
             switch manager.authorizationStatus {
             case .notDetermined:

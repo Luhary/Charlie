@@ -45,6 +45,22 @@ final class AIClient {
         }
     }
 
+    /// Разовый запрос со своей системной инструкцией, без характера и истории (например, разбор даты из фразы).
+    func oneShot(system: String, user: String) async throws -> String {
+        guard let key = Keychain.get("apiKey"), !key.isEmpty else { throw AIError.noKey }
+        let d = UserDefaults.standard
+        let provider = d.string(forKey: Prefs.provider) ?? "openai"
+        let customModel = d.string(forKey: Prefs.model) ?? ""
+        let model = customModel.isEmpty ? (provider == "anthropic" ? "claude-sonnet-5-5" : "gpt-4o-mini") : customModel
+        let messages = [ChatMessage(role: "user", content: user)]
+        if provider == "anthropic" {
+            return try await askAnthropic(key: key, model: model, system: system, messages: messages)
+        }
+        let customURL = d.string(forKey: Prefs.baseURL) ?? ""
+        let base = customURL.isEmpty ? Prefs.defaultBaseURL : customURL
+        return try await askOpenAI(base: base, key: key, model: model, system: system, messages: messages)
+    }
+
     // MARK: Anthropic
 
     private func askAnthropic(key: String, model: String, system: String, messages: [ChatMessage]) async throws -> String {
@@ -84,7 +100,9 @@ final class AIClient {
         req.setValue("Bearer \(key)", forHTTPHeaderField: "authorization")
         var msgs: [[String: String]] = [["role": "system", "content": system]]
         msgs += messages.map { ["role": $0.role, "content": $0.content] }
-        let body: [String: Any] = ["model": model, "messages": msgs, "max_tokens": 400]
+        // у самой OpenAI новые модели принимают только max_completion_tokens
+        let tokenKey = (url.host ?? "").contains("openai.com") ? "max_completion_tokens" : "max_tokens"
+        let body: [String: Any] = ["model": model, "messages": msgs, tokenKey: 600]
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let json = try await send(req)

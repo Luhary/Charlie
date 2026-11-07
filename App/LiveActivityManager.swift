@@ -7,10 +7,26 @@ final class LiveActivityManager: ObservableObject {
 
     @Published private(set) var isActive = false
     private var activity: Activity<CompanionAttributes>?
+    private var observer: Task<Void, Never>?
 
     private init() {
         activity = Activity<CompanionAttributes>.activities.first
         isActive = activity != nil
+        if let activity { observe(activity) }
+    }
+
+    /// Система сама завершает Live Activity через несколько часов — тогда сбрасываем состояние кнопки.
+    private func observe(_ a: Activity<CompanionAttributes>) {
+        observer?.cancel()
+        observer = Task { [weak self] in
+            for await state in a.activityStateUpdates {
+                if state == .ended || state == .dismissed {
+                    self?.activity = nil
+                    self?.isActive = false
+                    break
+                }
+            }
+        }
     }
 
     func start(mood: CompanionMood = .idle, message: String = "Чарли здесь 🖤") {
@@ -22,6 +38,7 @@ final class LiveActivityManager: ObservableObject {
                 content: ActivityContent(state: state, staleDate: nil)
             )
             isActive = true
+            if let activity { observe(activity) }
         } catch {
             print("Live Activity error: \(error)")
         }
@@ -34,6 +51,7 @@ final class LiveActivityManager: ObservableObject {
     }
 
     func stop() async {
+        observer?.cancel()
         await activity?.end(nil, dismissalPolicy: .immediate)
         activity = nil
         isActive = false

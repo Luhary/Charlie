@@ -12,11 +12,13 @@ final class CompanionStore: ObservableObject {
     @Published var liveTranscript = ""
     @Published var input = ""
     @Published var pendingAction: PendingAction?
+    @Published var pendingEvent: PendingEvent?
 
     private let listener = SpeechListener()
     private let location = LocationOnce()
     private let speaker = Speaker()
     private var history: [ChatMessage] = []
+    private var askTask: Task<Void, Never>?
 
     private init() {
         UserDefaults.standard.register(defaults: [Prefs.speak: true])
@@ -43,6 +45,7 @@ final class CompanionStore: ObservableObject {
     }
 
     func startListening() {
+        askTask?.cancel()   // начала говорить снова — старый ответ уже не нужен
         speaker.stop()
         Task {
             // маленькая пауза, чтобы приложение успело стать активным (например, после Action Button)
@@ -62,24 +65,90 @@ final class CompanionStore: ObservableObject {
             openMaps(command)
             return
         }
+        // «7 ноября с часу до трёх сделать лабораторную» — это в календарь
+        if CalendarIntent.looksLikeEvent(text) {
+            handleCalendar(text)
+            return
+        }
+        chat(text)
+    }
+
+    private func chat(_ text: String) {
         setMood(.thinking, "Думаю…")
-        Task {
+        askTask?.cancel()
+        askTask = Task {
             do {
                 let answer = try await AIClient.shared.ask(text, history: history)
+                guard !Task.isCancelled else { return }
                 history.append(ChatMessage(role: "user", content: text))
                 history.append(ChatMessage(role: "assistant", content: answer))
                 lastAnswer = answer
                 if UserDefaults.standard.bool(forKey: Prefs.speak) {
                     setMood(.speaking, answer)
                     speaker.speak(answer)
+                    watchSpeech()
                 } else {
                     setMood(.idle, answer)
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 lastAnswer = error.localizedDescription
                 react(.surprised, "Что-то пошло не так", seconds: 3)
             }
         }
+    }
+
+    /// Страховка: если озвучка не запустилась, Чарли не должна «говорить» вечно.
+    private func watchSpeech() {
+        Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            if mood == .speaking && !speaker.isSpeaking {
+                react(.smirk, "Чарли здесь 🖤")
+            }
+        }
+    }
+
+    private func handleCalendar(_ text: String) {
+        setMood(.thinking, "Смотрю даты…")
+        askTask?.cancel()
+        askTask = Task {
+            do {
+                if let event = try await CalendarIntent.extract(text) {
+                    guard !Task.isCancelled else { return }
+                    pendingEvent = event
+                    lastAnswer = "Записать в календарь?\n" + event.summary
+                    setMood(.idle, "Записать в календарь?")
+                } else {
+                    guard !Task.isCancelled else { return }
+                    chat(text)   // оказалось, это не про календарь — отвечаем как обычно
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                lastAnswer = error.localizedDescription
+                react(.surprised, "Что-то пошло не так", seconds: 3)
+            }
+        }
+    }
+
+    func confirmEvent() {
+        guard let event = pendingEvent else { return }
+        pendingEvent = nil
+        Task {
+            do {
+                try await CalendarService.save(event)
+                lastAnswer = "Записала:\n" + event.summary
+                react(.smirk, "Записала в календарь")
+            } catch {
+                lastAnswer = error.localizedDescription
+                react(.surprised, "Не записалось", seconds: 3)
+            }
+        }
+    }
+
+    func cancelEvent() {
+        pendingEvent = nil
+        lastAnswer = "Хорошо, не записываю."
+        setMood(.idle, "Чарли здесь 🖤")
     }
 
     private func handleVoice(_ text: String) {

@@ -23,6 +23,7 @@ targets:
         NSSupportsLiveActivities: true
         NSLocationWhenInUseUsageDescription: Нужна, чтобы искать места рядом и строить маршруты от тебя.
         LSApplicationQueriesSchemes: [yandexmaps]
+        NSCalendarsWriteOnlyAccessUsageDescription: Нужно, чтобы записывать события в календарь по твоей просьбе.
         NSMicrophoneUsageDescription: Нужен, чтобы слышать твои команды.
         NSSpeechRecognitionUsageDescription: Распознавание речи на устройстве.
         CFBundleURLTypes:

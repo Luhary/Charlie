@@ -34,6 +34,17 @@ struct ContentView: View {
                 }
                 .frame(maxHeight: 190)
 
+                if store.pendingEvent != nil {
+                    HStack(spacing: 12) {
+                        Button("Записать") { store.confirmEvent() }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 0.55, green: 0.08, blue: 0.20))
+                        Button("Отмена") { store.cancelEvent() }
+                            .buttonStyle(.bordered)
+                            .tint(.gray)
+                    }
+                }
+
                 inputBar
 
                 Button(live.isActive ? "Dynamic Island: выключить" : "Dynamic Island: включить") {
