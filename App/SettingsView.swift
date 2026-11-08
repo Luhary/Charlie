@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage(Prefs.persona) private var persona = ""
     @AppStorage(Prefs.speak) private var speak = true
     @AppStorage(Prefs.maps) private var maps = "yandex"
+    @AppStorage(Prefs.lockShortcut) private var lockShortcut = ""
     @State private var apiKey = Keychain.get("apiKey") ?? ""
 
     var body: some View {
@@ -41,6 +42,13 @@ struct SettingsView: View {
                         Text("Google Карты").tag("google")
                     }
                     Text("Скажи: «как добраться до улицы Ленина» или «где ближайший строительный».")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Блокировка экрана") {
+                    TextField(Prefs.defaultLockShortcut, text: $lockShortcut)
+                        .autocorrectionDisabled()
+                    Text("Название команды из приложения «Команды», которая ждёт N секунд и блокирует экран. Как её создать, написано в README.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

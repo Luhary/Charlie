@@ -5,6 +5,7 @@ struct ContentView: View {
     @ObservedObject private var live = LiveActivityManager.shared
     @FocusState private var inputFocused: Bool
     @State private var showSettings = false
+    @State private var showNotes = false
     @State private var blink = false
 
     var body: some View {
@@ -13,6 +14,12 @@ struct ContentView: View {
             VStack(spacing: 20) {
                 HStack {
                     Spacer()
+                    Button { showNotes = true } label: {
+                        Image(systemName: "note.text")
+                            .font(.title3)
+                            .foregroundStyle(.gray)
+                    }
+                    .padding(.trailing, 14)
                     Button { showSettings = true } label: {
                         Image(systemName: "gearshape.fill")
                             .font(.title3)
@@ -34,15 +41,8 @@ struct ContentView: View {
                 }
                 .frame(maxHeight: 190)
 
-                if store.pendingEvent != nil {
-                    HStack(spacing: 12) {
-                        Button("Записать") { store.confirmEvent() }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color(red: 0.55, green: 0.08, blue: 0.20))
-                        Button("Отмена") { store.cancelEvent() }
-                            .buttonStyle(.bordered)
-                            .tint(.gray)
-                    }
+                if let pending = store.pending {
+                    pendingView(pending)
                 }
 
                 inputBar
@@ -57,6 +57,7 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showNotes) { NotesView() }
         .onChange(of: store.pendingAction, initial: true) { _, action in
             guard let action else { return }
             store.pendingAction = nil
@@ -105,6 +106,39 @@ struct ContentView: View {
                 Image(systemName: "arrow.up.circle.fill").font(.title)
             }
         }
+    }
+
+    @ViewBuilder
+    private func pendingView(_ pending: PendingCommand) -> some View {
+        switch pending {
+        case .chooseContact(let matches):
+            VStack(spacing: 8) {
+                ForEach(matches) { match in
+                    Button { store.choose(match) } label: {
+                        Text("\(match.name) · \(match.number)").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.gray)
+                }
+                Button("Отмена") { store.cancelPending() }
+                    .buttonStyle(.borderless)
+                    .tint(.gray)
+            }
+        case .event, .alarm:
+            HStack(spacing: 12) {
+                Button(confirmTitle(pending)) { store.confirmPending() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(red: 0.55, green: 0.08, blue: 0.20))
+                Button("Отмена") { store.cancelPending() }
+                    .buttonStyle(.bordered)
+                    .tint(.gray)
+            }
+        }
+    }
+
+    private func confirmTitle(_ pending: PendingCommand) -> String {
+        if case .alarm = pending { return "Поставить" }
+        return "Записать"
     }
 
     private func send() {

@@ -8,6 +8,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Select newest stable Xcode (AlarmKit needs the iOS 26 SDK)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
